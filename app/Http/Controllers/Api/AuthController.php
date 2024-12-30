@@ -7,9 +7,17 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Exceptions\JWTException;
 use Tymon\JWTAuth\Facades\JWTAuth;
+use App\Services\TokenBlacklistService;
 
 class AuthController extends Controller
 {
+    protected $blacklistService;
+
+    public function __construct(TokenBlacklistService $blacklistService)
+    {
+        $this->blacklistService = $blacklistService;
+    }
+
     public function register(Request $request)
     {
         $request->validate([
@@ -44,12 +52,19 @@ class AuthController extends Controller
 
     public function logout()
     {
-        JWTAuth::invalidate(JWTAuth::getToken());
+        $token = JWTAuth::getToken();
+        JWTAuth::invalidate($token);
+        $this->blacklistService->blacklist($token);
 
         return response()->json(['message' => 'Successfully logged out']);
     }
 
     public function me()
+    {
+        return response()->json(JWTAuth::parseToken()->authenticate());
+    }
+
+    public function validateToken()
     {
         return response()->json(JWTAuth::parseToken()->authenticate());
     }
